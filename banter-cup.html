@@ -457,7 +457,8 @@ const TEAM3 = {
 // ── RUNTIME DATA ─────────────────────────────────────────────
 let PLAYERS   = [];   // From leaderboard (Phase 1 players)
 let PICKS_P1  = {};   // {nameLower: {name,groups[],boot,glove}}
-let GRP_RES   = {};   // {A:'Mexico', B:'Switzerland', ...}
+// Group stage complete — results hardcoded (won't change)
+const GRP_RES = {A:'Mexico',B:'Switzerland',C:'Brazil',D:'USA',E:'Germany',F:'Netherlands',G:'Belgium',H:'Spain',I:'France',J:'Argentina',K:'Colombia',L:'England'};
 let BOOT_DATA = [];   // [{name,goals,pickers[]}]
 let PICKS_P2  = {};   // {nameLower: {name,r32[],sfs[],finalists[],champion,p2Only}}
 let KO_WIN    = {};   // {'M1':'South Africa', ...} once results known
@@ -1311,13 +1312,13 @@ function render(){
 async function loadData(){
   const errs=[];
   // Declare at outer scope so the debug window.BC.RAW can access them
-  var lbRaw=[],p1Raw=[],grpRaw=[],koRaw=[],p2bRaw=[],bootRaw=[],p2Raw=[];
+  var lbRaw=[],p1Raw=[],koRaw=[],p2bRaw=[],bootRaw=[],p2Raw=[];
 
   await Promise.all([
     fetchSheet(GIDS.leaderboard).then(r=>lbRaw=r).catch(e=>errs.push('Leaderboard: '+e.message)),
     fetchSheet(GIDS.p1picks).then(r=>p1Raw=r).catch(e=>errs.push('P1 Picks: '+e.message)),
     fetchSheet(GIDS.p2picks).then(r=>p2Raw=r).catch(e=>errs.push('P2 Picks: '+e.message)),
-    fetchSheet(GIDS.results,'A1:B20').then(r=>grpRaw=r).catch(e=>errs.push('Groups: '+e.message)),
+    // GRP_RES hardcoded — no fetch needed
     fetchSheet(GIDS.results,'A1:C50').then(r=>koRaw=r).catch(e=>errs.push('KO Results: '+e.message)),
     fetchSheet(GIDS.results,'A60:D90').then(r=>p2bRaw=r).catch(e=>errs.push('P2b Results: '+e.message)),
     fetchSheet(GIDS.results,'A80:C110').then(r=>bootRaw=r).catch(e=>errs.push('Boot: '+e.message)),
@@ -1334,7 +1335,7 @@ async function loadData(){
   }
 
   PICKS_P1    = parseP1Picks(p1Raw);
-  GRP_RES     = parseGroupWinners(grpRaw);
+  // GRP_RES is hardcoded — no parse needed
   KO_WIN      = {};
   const koRes = parseKOResults(koRaw);
   Object.entries(koRes).forEach(([id,d])=>{ if(d.settled&&d.winner) KO_WIN[id]=d.winner; });
@@ -1358,7 +1359,7 @@ async function loadData(){
   window.BC={
     KO_WIN, PICKS_P2, PICKS_P1, GRP_RES, PLAYERS, BOOT_DATA,
     P2B_RES, LAST_SYNC,
-    RAW:{lbRaw,p1Raw,p2Raw,grpRaw,koRaw,p2bRaw,bootRaw},
+    RAW:{lbRaw,p1Raw,p2Raw,koRaw,p2bRaw,bootRaw},
     score:(name)=>calcP2Score(PICKS_P2[name.toLowerCase()]),
   };
   console.group('BANTER CUP — data loaded');
