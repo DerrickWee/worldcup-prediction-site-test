@@ -26,7 +26,7 @@
     --upw:rgba(15,165,106,.12);--downw:rgba(224,58,72,.11);
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
+  html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
   body{
     background:var(--bg);color:var(--fg);
     font-family:'Hanken Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased;
@@ -55,7 +55,7 @@
   /* header */
   header.top{position:sticky;top:0;z-index:30;display:flex;flex-direction:column;
     padding:0;background:var(--panel);border-bottom:1px solid var(--line)}
-  .hrow1{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;gap:12px}
+  .hrow1{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;gap:12px;flex-wrap:wrap}
   .hrow2{display:flex;border-top:1px solid var(--line);padding:0 18px;overflow-x:auto}
   .brand{display:flex;align-items:center;gap:11px}
   .mark{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#0a0b0e;display:flex;
@@ -71,8 +71,8 @@
   nav.tabs button.active .ul{background:var(--accent)}
   .live{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--up)}
   .live .dot{width:7px;height:7px;border-radius:50%;background:var(--up);animation:blink 1.6s infinite}
-  .ctrls{display:flex;align-items:center;gap:10px}
-  .swatches{display:flex;gap:6px}
+  .ctrls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .swatches{display:flex;gap:6px;flex-wrap:wrap;max-width:260px}
   .swatch{width:28px;height:28px;border-radius:7px;cursor:pointer;border:2px solid transparent;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:10px;color:#0a0b0e;flex-shrink:0}
   .swatch.on{border-color:var(--fg);box-shadow:0 0 0 2px var(--fg)}
   .tbtn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;cursor:pointer;color:var(--muted);
@@ -190,8 +190,8 @@
   .mcard-pips{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:100px}
   .pip{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:#0a0b0e;flex-shrink:0}
 
-  /* bracket — KO Picks bracket view */
-  .bkwrap{display:grid;grid-template-columns:1.8fr 1.3fr 1fr 1fr 1fr;gap:1px;background:var(--line);border-radius:12px;overflow:hidden;min-width:680px}
+  /* bracket — Picks tab bracket view */
+  .bkwrap{display:grid;grid-template-columns:1.8fr 1.3fr 1.1fr 1fr 1fr 1fr;gap:1px;background:var(--line);border-radius:12px;overflow:hidden;min-width:780px}
   .bkround{background:var(--panel);display:flex;flex-direction:column}
   .bkround-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.12em;color:var(--muted);text-align:center;padding:10px 6px;background:var(--panel2);white-space:nowrap}
   .bkround-body{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;padding:10px 8px;gap:5px}
@@ -200,6 +200,7 @@
   .bkteam.miss{background:var(--downw);border-color:var(--down)}
   .bkteam.champ{background:var(--accentw);border-color:var(--accent);font-size:13px;font-weight:800}
   .bkteam.empty{color:var(--faint);font-size:11px;font-weight:400;font-style:italic;border-style:dashed}
+  .bk-half-div{height:1px;background:var(--line);margin:4px 0}
 
   /* submit tab */
   .sub-section{margin-bottom:28px}
@@ -383,6 +384,45 @@ function getR16Matches(){
     lbl1: KO_WIN[r.m1]||`Winner of ${r.m1}`,
     lbl2: KO_WIN[r.m2]||`Winner of ${r.m2}`,
   }));
+}
+
+// QF bracket — each QF match is the winner of two R16 matches. No real result
+// source exists yet for R16 winners, so QF labels stay as nested placeholders
+// ("Winner of R16-1") until that data is available — same pattern as R16.
+const QF_BRACKET = [
+  {id:'QF-1', m1:'R16-1', m2:'R16-2'},
+  {id:'QF-2', m1:'R16-3', m2:'R16-4'},
+  {id:'QF-3', m1:'R16-5', m2:'R16-6'},
+  {id:'QF-4', m1:'R16-7', m2:'R16-8'},
+];
+function getQFMatches(){
+  return QF_BRACKET.map((q,i)=>({
+    id:i+1, lbl1:`Winner of ${q.m1}`, lbl2:`Winner of ${q.m2}`, t1:null, t2:null,
+  }));
+}
+
+// SF bracket — fixed by the draw: which two QF matches feed each semifinal.
+// Used only to figure out which "side" of the draw a team structurally
+// belongs to, independent of results, for placing lock-in picks correctly.
+const SF_BRACKET = [
+  {id:'SF-1', m1:'QF-1', m2:'QF-2'},
+  {id:'SF-2', m1:'QF-3', m2:'QF-4'},
+];
+
+// Given a real team name, trace its fixed R32 → R16 → QF → SF path to find
+// which side of the draw ('SF-1' or 'SF-2') it structurally belongs to.
+// This is fixed by the tournament draw and doesn't depend on any results.
+function teamBranch(team){
+  if(!team) return null;
+  const nteam=nt(team);
+  const m32=R32.find(m=>nt(m.t1)===nteam||nt(m.t2)===nteam);
+  if(!m32) return null;
+  const r16=R16_BRACKET.find(r=>r.m1===m32.id||r.m2===m32.id);
+  if(!r16) return null;
+  const qf=QF_BRACKET.find(q=>q.m1===r16.id||q.m2===r16.id);
+  if(!qf) return null;
+  const sf=SF_BRACKET.find(s=>s.m1===qf.id||s.m2===qf.id);
+  return sf?sf.id:null;
 }
 
 const BRACKET_COLS = [
@@ -973,9 +1013,20 @@ function r16MatchSlot(m){
   </div>`;
 }
 
+// Informational QF matchup — always a nested placeholder for now since no
+// real R16 result data source exists yet.
+function qfMatchSlot(m){
+  return `<div class="bkteam empty" style="justify-content:flex-start">
+    <span style="overflow:hidden;text-overflow:ellipsis;font-size:10px">${san(m.lbl1)} v ${san(m.lbl2)}</span>
+  </div>`;
+}
+
+// Thin visual divider marking the split between the two true bracket halves.
+const BK_HALF_DIV='<div class="bk-half-div"></div>';
+
 function picksModeToggle(current){
   const btn=(k,l)=>`<button onclick="state.picksMode='${k}';render()" style="border:none;border-radius:7px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;background:${current===k?'var(--panel)':'transparent'};color:${current===k?'var(--fg)':'var(--muted)'}">${l}</button>`;
-  return `<div style="display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px">${btn('group','Group Picks')}${btn('matchups','Matchups')}${btn('bracket','My Bracket')}</div>`;
+  return `<div style="display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px">${btn('group','Group Stage')}${btn('matchups','RO32 Picks')}${btn('bracket','My Bracket')}</div>`;
 }
 
 function bracketBody(){
@@ -985,25 +1036,50 @@ function bracketBody(){
   const you=PLAYERS.find(pl=>pl.name.toLowerCase()===key)||{name:state.youName,c:pc(state.youName)};
   const score=p?calcP2Score(p):{r32:0,sf:0,fin:0,champ:0,total:0};
 
-  const r32slots=(p?p.r32:[]).map((team,i)=>{
+  // R32 — matches 1-8 feed the top half of the draw (SF-1), 9-16 feed the
+  // bottom half (SF-2). A divider marks the split so the two halves that
+  // eventually converge at the Final are visually distinguishable.
+  const r32teams=p?p.r32:Array(16).fill('');
+  const r32cell=(team,i)=>{
     const winner=KO_WIN[R32[i].id];
     const ok=winner&&team?nt(team)===nt(winner):null;
     return bkSlot(team,ok);
-  }).join('')||Array(16).fill('<div class="bkteam empty">—</div>').join('');
+  };
+  const r32slots=r32teams.slice(0,8).map(r32cell).join('')+BK_HALF_DIV
+    +r32teams.slice(8,16).map((t,i)=>r32cell(t,i+8)).join('');
 
-  const r16slots=getR16Matches().map(r16MatchSlot).join('');
+  const r16all=getR16Matches();
+  const r16slots=r16all.slice(0,4).map(r16MatchSlot).join('')+BK_HALF_DIV
+    +r16all.slice(4,8).map(r16MatchSlot).join('');
 
-  const sfSlots=(p?[...p.sfs,...Array(Math.max(0,4-p.sfs.length)).fill('')]:['',' ','',''])
-    .slice(0,4).map(t=>{
-      const ok=P2B_RES.sfs.length&&t?P2B_RES.sfs.some(s=>nt(s)===nt(t)):null;
-      return bkSlot(t,ok);
-    }).join('');
+  const qfAll=getQFMatches();
+  const qfslots=qfAll.slice(0,2).map(qfMatchSlot).join('')+BK_HALF_DIV
+    +qfAll.slice(2,4).map(qfMatchSlot).join('');
 
-  const finSlots=(p?[...p.finalists,...Array(Math.max(0,2-p.finalists.length)).fill('')]:['',' '])
-    .slice(0,2).map(t=>{
-      const ok=P2B_RES.finalists.length&&t?P2B_RES.finalists.some(f=>nt(f)===nt(t)):null;
-      return bkSlot(t,ok);
-    }).join('');
+  // SF / Finalist picks are unordered guesses (not tied to a bracket slot by
+  // the original form), so bucket each pick into its real structural half
+  // (SF-1 = top, SF-2 = bottom) using the fixed tournament draw, independent
+  // of results. This is what makes e.g. France line up under the half of the
+  // bracket it actually plays in, instead of appearing in arbitrary order.
+  const sfCell=t=>{
+    const ok=P2B_RES.sfs.length&&t?P2B_RES.sfs.some(s=>nt(s)===nt(t)):null;
+    return bkSlot(t,ok);
+  };
+  const sfPicks=p?p.sfs.filter(Boolean):[];
+  const sfTop=sfPicks.filter(t=>teamBranch(t)==='SF-1');
+  const sfBot=sfPicks.filter(t=>teamBranch(t)==='SF-2');
+  const sfSlots=(sfTop.length?sfTop:['']).map(sfCell).join('')+BK_HALF_DIV
+    +(sfBot.length?sfBot:['']).map(sfCell).join('');
+
+  const finCell=t=>{
+    const ok=P2B_RES.finalists.length&&t?P2B_RES.finalists.some(f=>nt(f)===nt(t)):null;
+    return bkSlot(t,ok);
+  };
+  const finPicks=p?p.finalists.filter(Boolean):[];
+  const finTop=finPicks.filter(t=>teamBranch(t)==='SF-1');
+  const finBot=finPicks.filter(t=>teamBranch(t)==='SF-2');
+  const finSlots=(finTop.length?finTop:['']).map(finCell).join('')+BK_HALF_DIV
+    +(finBot.length?finBot:['']).map(finCell).join('');
 
   const champOk=P2B_RES.champion&&p&&p.champion?nt(p.champion)===nt(P2B_RES.champion):null;
   const champSlot=bkSlot(p?p.champion:'',champOk,'champ');
@@ -1022,6 +1098,10 @@ function bracketBody(){
             <div class="bkround-body">${r16slots}</div>
           </div>
           <div class="bkround">
+            <div class="bkround-lbl">QUARTER-FINALS</div>
+            <div class="bkround-body">${qfslots}</div>
+          </div>
+          <div class="bkround">
             <div class="bkround-lbl">SEMI-FINALISTS · +10 each</div>
             <div class="bkround-body">${sfSlots}</div>
           </div>
@@ -1036,7 +1116,7 @@ function bracketBody(){
         </div>
       </div>
     </div>
-    <p class="mono" style="font-size:10.5px;color:var(--faint);margin-top:12px">Switch player via the coloured swatches in the header. Round of 16 shows the real bracket as it's confirmed — it's informational, not scored.</p>`;
+    <p class="mono" style="font-size:10.5px;color:var(--faint);margin-top:12px">Switch player via the coloured swatches in the header. Round of 16 / Quarter-Finals show the real bracket as it's confirmed — informational, not scored. The dividers mark the two halves of the draw that converge at the Final.</p>`;
 
   return {you, score, html};
 }
