@@ -191,7 +191,7 @@
   .pip{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:#0a0b0e;flex-shrink:0}
 
   /* bracket — KO Picks bracket view */
-  .bkwrap{display:grid;grid-template-columns:1.8fr 1fr 1fr 1fr;gap:1px;background:var(--line);border-radius:12px;overflow:hidden;min-width:560px}
+  .bkwrap{display:grid;grid-template-columns:1.8fr 1.3fr 1fr 1fr 1fr;gap:1px;background:var(--line);border-radius:12px;overflow:hidden;min-width:680px}
   .bkround{background:var(--panel);display:flex;flex-direction:column}
   .bkround-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.12em;color:var(--muted);text-align:center;padding:10px 6px;background:var(--panel2);white-space:nowrap}
   .bkround-body{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;padding:10px 8px;gap:5px}
@@ -413,7 +413,6 @@ const TABS = [
   ['standings',  'Standings'],
   ['leaderboard','Leaderboard'],
   ['picks',      'Picks'],
-  ['kopicks',    'KO Picks'],
   ['results',    'Results'],
   ['rules',      'Rules'],
   ['submit',     'Submit'],
@@ -760,7 +759,7 @@ function renderTicker(){
     return w?`<span class="it">${tag('GRP '+g)}<span style="font-size:14px;margin-right:3px">${flag(w)}</span><b>${san(w)}</b></span>`:'';
   }).filter(Boolean);
   const bt=BOOT_DATA.slice(0,5).map(b=>`<span class="it">${tag('BOOT','var(--gold)')}<b>${san(b.name)}</b><span class="mono" style="color:var(--gold)">${b.goals}G</span></span>`);
-  const lb=PLAYERS.filter(p=>!p.p2Only).slice(0,5).map((p,i)=>`<span class="it">${tag('P'+(i+1),'var(--accent)')}<b>${san(p.name.split(' ')[0])}</b><span class="mono" style="color:var(--accent)">${p.total}pts</span></span>`);
+  const lb=PLAYERS.filter(p=>!p.p2Only).slice(0,5).map((p,i)=>`<span class="it">${tag('P'+(i+1),'var(--accent)')}<b>${san(p.name)}</b><span class="mono" style="color:var(--accent)">${p.total}pts</span></span>`);
   const all=[...grp,...bt,...lb];
   if(!all.length){document.getElementById('ticker').innerHTML='';return;}
   const base=all.join('');
@@ -924,7 +923,7 @@ function viewLeaderboard(){
     </p>`;
 }
 
-function viewPicks(){
+function groupPicksBody(){
   const p1players=PLAYERS.filter(p=>!p.p2Only);
   const head=`<div class="pmgrid pmhead">
     <span class="t">PLAYER</span>
@@ -953,16 +952,7 @@ function viewPicks(){
         <span style="font-size:13px;font-weight:600;white-space:nowrap">${san(p.name)}</span>
       </div>${cells}</div>`;
   }).join('');
-  return `
-    <div class="head">
-      <div><h1 class="page">Phase 1 Picks</h1><p class="sub">Group winners + awards. Phase-2-only players not shown here.</p></div>
-      <div class="legend">
-        <span style="color:var(--up)"><i style="background:var(--upw);border:1px solid var(--up)"></i>HIT</span>
-        <span style="color:var(--down)"><i style="background:var(--downw);border:1px solid var(--down)"></i>MISS</span>
-        <span style="color:var(--faint)"><i style="background:var(--panel2);border:1px solid var(--line)"></i>OPEN</span>
-      </div>
-    </div>
-    <div class="panel" style="overflow:hidden"><div class="scroll"><div class="pm">${head}${rows}</div></div></div>`;
+  return `<div class="panel" style="overflow:hidden"><div class="scroll"><div class="pm">${head}${rows}</div></div></div>`;
 }
 
 function bkSlot(team, ok, extra){
@@ -971,83 +961,87 @@ function bkSlot(team, ok, extra){
   return `<div class="${cls}">${flag(team)||''} <span style="overflow:hidden;text-overflow:ellipsis">${san(team)}</span>${ok===true?' <span style="color:var(--up);margin-left:auto">✓</span>':ok===false?' <span style="color:var(--down);margin-left:auto">✕</span>':''}</div>`;
 }
 
-function modeToggle(current){
-  const btn=(k,l)=>`<button onclick="state.koMode='${k}';render()" style="border:none;border-radius:7px;padding:6px 14px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;background:${current===k?'var(--panel)':'transparent'};color:${current===k?'var(--fg)':'var(--muted)'}">${l}</button>`;
-  return `<div style="display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px">${btn('matchups','Matchups')}${btn('bracket','My Bracket')}</div>`;
+// Informational (non-scored) Round of 16 matchup — shows the real bracket
+// once both feeder R32 matches are settled, otherwise a "Winner of Mx" placeholder.
+function r16MatchSlot(m){
+  const known=m.t1&&m.t2;
+  const label=known?`${san(m.t1)} v ${san(m.t2)}`:`${san(m.lbl1)} v ${san(m.lbl2)}`;
+  const flags=known?`${flag(m.t1)} ${flag(m.t2)}`:'';
+  return `<div class="bkteam${known?'':' empty'}" style="justify-content:flex-start">
+    ${flags?`<span style="font-size:12px">${flags}</span>`:''}
+    <span style="overflow:hidden;text-overflow:ellipsis;font-size:${known?'11.5px':'10.5px'}">${label}</span>
+  </div>`;
 }
 
-function viewKoPicks(){
-  const mode=state.koMode||'matchups';
+function picksModeToggle(current){
+  const btn=(k,l)=>`<button onclick="state.picksMode='${k}';render()" style="border:none;border-radius:7px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;background:${current===k?'var(--panel)':'transparent'};color:${current===k?'var(--fg)':'var(--muted)'}">${l}</button>`;
+  return `<div style="display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px">${btn('group','Group Picks')}${btn('matchups','Matchups')}${btn('bracket','My Bracket')}</div>`;
+}
 
-  // ── BRACKET MODE — selected player's picks as a visual bracket ──
-  if(mode==='bracket'){
-    const key=state.youName.toLowerCase();
-    const p=PICKS_P2[key]||null;
-    const noSub=!p;
-    const you=PLAYERS.find(pl=>pl.name.toLowerCase()===key)||{name:state.youName,c:pc(state.youName)};
-    const score=p?calcP2Score(p):{r32:0,sf:0,fin:0,champ:0,total:0};
+function bracketBody(){
+  const key=state.youName.toLowerCase();
+  const p=PICKS_P2[key]||null;
+  const noSub=!p;
+  const you=PLAYERS.find(pl=>pl.name.toLowerCase()===key)||{name:state.youName,c:pc(state.youName)};
+  const score=p?calcP2Score(p):{r32:0,sf:0,fin:0,champ:0,total:0};
 
-    const r32slots=(p?p.r32:[]).map((team,i)=>{
-      const winner=KO_WIN[R32[i].id];
-      const ok=winner&&team?nt(team)===nt(winner):null;
-      return bkSlot(team,ok);
-    }).join('')||Array(16).fill('<div class="bkteam empty">—</div>').join('');
+  const r32slots=(p?p.r32:[]).map((team,i)=>{
+    const winner=KO_WIN[R32[i].id];
+    const ok=winner&&team?nt(team)===nt(winner):null;
+    return bkSlot(team,ok);
+  }).join('')||Array(16).fill('<div class="bkteam empty">—</div>').join('');
 
-    const sfSlots=(p?[...p.sfs,...Array(Math.max(0,4-p.sfs.length)).fill('')]:['',' ','',''])
-      .slice(0,4).map(t=>{
-        const ok=P2B_RES.sfs.length&&t?P2B_RES.sfs.some(s=>nt(s)===nt(t)):null;
-        return bkSlot(t,ok);
-      }).join('');
+  const r16slots=getR16Matches().map(r16MatchSlot).join('');
 
-    const finSlots=(p?[...p.finalists,...Array(Math.max(0,2-p.finalists.length)).fill('')]:['',' '])
-      .slice(0,2).map(t=>{
-        const ok=P2B_RES.finalists.length&&t?P2B_RES.finalists.some(f=>nt(f)===nt(t)):null;
-        return bkSlot(t,ok);
-      }).join('');
+  const sfSlots=(p?[...p.sfs,...Array(Math.max(0,4-p.sfs.length)).fill('')]:['',' ','',''])
+    .slice(0,4).map(t=>{
+      const ok=P2B_RES.sfs.length&&t?P2B_RES.sfs.some(s=>nt(s)===nt(t)):null;
+      return bkSlot(t,ok);
+    }).join('');
 
-    const champOk=P2B_RES.champion&&p&&p.champion?nt(p.champion)===nt(P2B_RES.champion):null;
-    const champSlot=bkSlot(p?p.champion:'',champOk,'champ');
+  const finSlots=(p?[...p.finalists,...Array(Math.max(0,2-p.finalists.length)).fill('')]:['',' '])
+    .slice(0,2).map(t=>{
+      const ok=P2B_RES.finalists.length&&t?P2B_RES.finalists.some(f=>nt(f)===nt(t)):null;
+      return bkSlot(t,ok);
+    }).join('');
 
-    return `
-      <div class="head">
-        <div>
-          <h1 class="page">KO Picks</h1>
-          <p class="sub">Bracket view — <span style="color:var(--accent)">${san(you.name)}</span>'s picks${score.total?` · <span style="color:var(--up)">+${score.total}pts so far</span>`:''}</p>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px">${modeToggle(mode)}
-          <div class="legend">
-            <span style="color:var(--up)"><i style="background:var(--upw);border:1px solid var(--up)"></i>HIT</span>
-            <span style="color:var(--down)"><i style="background:var(--downw);border:1px solid var(--down)"></i>MISS</span>
+  const champOk=P2B_RES.champion&&p&&p.champion?nt(p.champion)===nt(P2B_RES.champion):null;
+  const champSlot=bkSlot(p?p.champion:'',champOk,'champ');
+
+  const html=`
+    ${noSub?`<div class="note" style="margin-bottom:16px">No Phase 2 picks found for <strong>${san(you.name)}</strong>. Use the Submit tab to enter picks.</div>`:''}
+    <div class="panel" style="overflow:hidden">
+      <div class="scroll">
+        <div class="bkwrap">
+          <div class="bkround">
+            <div class="bkround-lbl">ROUND OF 32 · 16 PICKS</div>
+            <div class="bkround-body">${r32slots}</div>
+          </div>
+          <div class="bkround">
+            <div class="bkround-lbl">ROUND OF 16 · LIVE BRACKET</div>
+            <div class="bkround-body">${r16slots}</div>
+          </div>
+          <div class="bkround">
+            <div class="bkround-lbl">SEMI-FINALISTS · +10 each</div>
+            <div class="bkround-body">${sfSlots}</div>
+          </div>
+          <div class="bkround">
+            <div class="bkround-lbl">FINALISTS · +15 each</div>
+            <div class="bkround-body">${finSlots}</div>
+          </div>
+          <div class="bkround">
+            <div class="bkround-lbl">🏆 CHAMPION · +30</div>
+            <div class="bkround-body">${champSlot}</div>
           </div>
         </div>
       </div>
-      ${noSub?`<div class="note" style="margin-bottom:16px">No Phase 2 picks found for <strong>${san(you.name)}</strong>. Use the Submit tab to enter picks.</div>`:''}
-      <div class="panel" style="overflow:hidden">
-        <div class="scroll">
-          <div class="bkwrap">
-            <div class="bkround">
-              <div class="bkround-lbl">ROUND OF 32 · 16 PICKS</div>
-              <div class="bkround-body">${r32slots}</div>
-            </div>
-            <div class="bkround">
-              <div class="bkround-lbl">SEMI-FINALISTS · +10 each</div>
-              <div class="bkround-body">${sfSlots}</div>
-            </div>
-            <div class="bkround">
-              <div class="bkround-lbl">FINALISTS · +15 each</div>
-              <div class="bkround-body">${finSlots}</div>
-            </div>
-            <div class="bkround">
-              <div class="bkround-lbl">🏆 CHAMPION · +30</div>
-              <div class="bkround-body">${champSlot}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <p class="mono" style="font-size:10.5px;color:var(--faint);margin-top:12px">Switch player via the coloured swatches in the header.</p>`;
-  }
+    </div>
+    <p class="mono" style="font-size:10.5px;color:var(--faint);margin-top:12px">Switch player via the coloured swatches in the header. Round of 16 shows the real bracket as it's confirmed — it's informational, not scored.</p>`;
 
-  // ── MATCHUPS MODE — per-match cards with player pips ──
+  return {you, score, html};
+}
+
+function matchupsBody(){
   const sortedP2=Object.values(PICKS_P2).sort((a,b)=>{
     if(a.p2Only!==b.p2Only) return a.p2Only?1:-1;
     return (PLAYERS.findIndex(p=>p.name.toLowerCase()===a.name.toLowerCase())||999)-
@@ -1111,20 +1105,52 @@ function viewKoPicks(){
   }).join('');
 
   return `
-    <div class="head">
-      <div><h1 class="page">KO Picks</h1><p class="sub">Phase 2 · ${sortedP2.length} players submitted · scores calculated client-side</p></div>
-      <div style="display:flex;align-items:center;gap:12px">${modeToggle(mode)}
-        <div class="legend">
-          <span style="color:var(--up)"><i style="background:var(--upw);border:1px solid var(--up)"></i>HIT</span>
-          <span style="color:var(--down)"><i style="background:var(--downw);border:1px solid var(--down)"></i>MISS</span>
-        </div>
-      </div>
-    </div>
     <div class="mcard-grid">${mcards}</div>
     <div class="panel" style="margin-top:22px;overflow:hidden">
       <div style="padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel2);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.13em;color:var(--muted)">LOCK-IN PICKS — PHASE 2B</div>
       ${sortedP2.length?lockRows:`<div style="padding:20px 18px;color:var(--faint);font-size:13px">No Phase 2 picks submitted yet.</div>`}
     </div>`;
+}
+
+// ── UNIFIED PICKS TAB — Group Picks / Matchups / My Bracket ───
+function viewPicks(){
+  const mode=state.picksMode||'group';
+  const legend=`<div class="legend">
+    <span style="color:var(--up)"><i style="background:var(--upw);border:1px solid var(--up)"></i>HIT</span>
+    <span style="color:var(--down)"><i style="background:var(--downw);border:1px solid var(--down)"></i>MISS</span>
+    ${mode==='group'?'<span style="color:var(--faint)"><i style="background:var(--panel2);border:1px solid var(--line)"></i>OPEN</span>':''}
+  </div>`;
+
+  if(mode==='group'){
+    return `
+      <div class="head">
+        <div><h1 class="page">Picks</h1><p class="sub">Group winners + awards. Phase-2-only players not shown here.</p></div>
+        <div style="display:flex;align-items:center;gap:12px">${picksModeToggle(mode)}${legend}</div>
+      </div>
+      ${groupPicksBody()}`;
+  }
+
+  if(mode==='matchups'){
+    const count=Object.keys(PICKS_P2).length;
+    return `
+      <div class="head">
+        <div><h1 class="page">Picks</h1><p class="sub">Phase 2 · ${count} players submitted · scores calculated client-side</p></div>
+        <div style="display:flex;align-items:center;gap:12px">${picksModeToggle(mode)}${legend}</div>
+      </div>
+      ${matchupsBody()}`;
+  }
+
+  // bracket
+  const b=bracketBody();
+  return `
+    <div class="head">
+      <div>
+        <h1 class="page">Picks</h1>
+        <p class="sub">Bracket view — <span style="color:var(--accent)">${san(b.you.name)}</span>'s picks${b.score.total?` · <span style="color:var(--up)">+${b.score.total}pts so far</span>`:''}</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">${picksModeToggle(mode)}${legend}</div>
+    </div>
+    ${b.html}`;
 }
 
 function viewSubmit(){
@@ -1254,11 +1280,28 @@ function viewResults(){
       </div>
       <div style="font-size:12.5px;color:var(--muted)">${h.desc}</div>
     </div>`).join('');
+
+  const youP2=PICKS_P2[state.youName.toLowerCase()];
+  const r32Rows=R32.map((m,i)=>{
+    const winner=KO_WIN[m.id];
+    const youPick=youP2?youP2.r32[i]:'';
+    const ok=winner&&youPick?nt(youPick)===nt(winner):null;
+    return `<div class="glrow">
+      <span class="mono" style="font-weight:700;font-size:12px;color:var(--faint);width:48px">M${i+1}</span>
+      ${winner?`<span style="font-size:18px;line-height:1">${flag(winner)}</span>`:''}
+      <span style="font-weight:600;font-size:14px;flex:1">${winner?san(winner):`${san(m.t1)} v ${san(m.t2)}`}</span>
+      ${winner?`<span class="mono" style="font-size:11px;color:${ok===true?'var(--up)':'var(--down)'}">${ok===true?'✓ you':'✕ you'}</span>`
+              :`<span class="mono" style="font-size:11px;color:var(--faint)">pending</span>`}
+    </div>`;
+  }).join('');
+  const r32Settled=Object.keys(KO_WIN).length;
+
   return `
     <div class="head"><div><h1 class="page">Results &amp; Honours</h1>
-      <p class="sub">Group leaders settled · Honours unlock end-of-tournament.</p></div></div>
+      <p class="sub">Group leaders settled · R32 · ${r32Settled} / 16 settled · Honours unlock end-of-tournament.</p></div></div>
     <div class="twocol">
       <div class="panel pad"><div class="ptitle" style="margin-bottom:14px">GROUP LEADERS</div>${leaders}</div>
+      <div class="panel pad"><div class="ptitle" style="margin-bottom:14px">ROUND OF 32 RESULTS</div>${r32Rows}</div>
       <div class="panel pad"><div class="ptitle" style="margin-bottom:14px">HONOUR ROLL</div>${honours}</div>
     </div>`;
 }
@@ -1286,7 +1329,7 @@ function viewRules(){
     </div>`;
 }
 
-const VIEWS={standings:viewStandings,leaderboard:viewLeaderboard,picks:viewPicks,kopicks:viewKoPicks,results:viewResults,rules:viewRules,submit:viewSubmit};
+const VIEWS={standings:viewStandings,leaderboard:viewLeaderboard,picks:viewPicks,results:viewResults,rules:viewRules,submit:viewSubmit};
 
 // ── COPY ─────────────────────────────────────────────────────
 function copyLeaderboard(){
@@ -1301,7 +1344,7 @@ function copyLeaderboard(){
 // ── STATE & RENDER ────────────────────────────────────────────
 const state={
   tab:'standings', theme:'dark', youName:DEFAULT_YOU,
-  koMode:'matchups',
+  picksMode:'group',
   sub:{r16:{}, status:'idle', name:''},
   submitUrl:'',
 };
