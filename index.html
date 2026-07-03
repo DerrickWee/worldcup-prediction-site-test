@@ -321,18 +321,21 @@ const PLAYER_COLORS = {
 
 const DEFAULT_YOU  = 'derrick';
 const GROUP_NAMES  = ['A','B','C','D','E','F','G','H','I','J','K','L'];
-// Groups that have picks in the form (Group G was omitted from the Phase 1 form)
-const P1_GROUP_KEYS = ['A','B','C','D','E','F','H','I','J','K','L'];
+// All 12 groups — form labels are shifted from G onwards (form says "Group H" but
+// data is Group G, etc.) and form col 12 is labelled "Golden Boot" but actually
+// holds the Group L pick (everyone put England = Group L winner). Real boot = col 13.
+const P1_GROUP_KEYS = ['A','B','C','D','E','F','G','H','I','J','K','L'];
 
 // Column map for GID 0 (Phase 1 form responses)
-// Form cols: 0=Email, 1=GrpA, 2=GrpB, 3=GrpC, 4=GrpD, 5=GrpE, 6=GrpF,
-//            7=GrpH (no G!), 8=GrpI, 9=GrpJ, 10=GrpK, 11=GrpL,
-//            12=Boot, 13=Glove, 14-16=empty, 17=DisplayName
+// Col: 0=Email, 1=GrpA, 2=GrpB, 3=GrpC, 4=GrpD, 5=GrpE, 6=GrpF,
+//      7=GrpG(form label "H"), 8=GrpH(form "I"), 9=GrpI(form "J"),
+//      10=GrpJ(form "K"), 11=GrpK(form "L"), 12=GrpL(form "Golden Boot"),
+//      13=Boot(form "Golden Glove"), 14=Glove(unlabelled), 17=DisplayName
 const P1_COLS = {
   email:  0,
-  groups: [1,2,3,4,5,6,7,8,9,10,11], // 11 picks: A,B,C,D,E,F,H,I,J,K,L
-  boot:   12,
-  glove:  13,
+  groups: [1,2,3,4,5,6,7,8,9,10,11,12], // all 12 groups A-L
+  boot:   13,
+  glove:  14,
   name:   17,
 };
 
@@ -932,7 +935,7 @@ function viewPicks(){
     const picks=PICKS_P1[p.name.toLowerCase()];
     let cells='';
     GROUP_NAMES.forEach(letter=>{
-      const pick=picks?picks.groups[letter]||'':''; // groups[G] is always undefined (no pick)
+      const pick=picks?picks.groups[letter]||'':'';
       const actual=GRP_RES[letter];
       let ok=null;
       if(actual&&pick) ok=nt(pick)===nt(actual);
